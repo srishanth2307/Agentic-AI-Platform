@@ -1,28 +1,37 @@
-"""Recommendation Agent — suggests next-best actions (placeholder)."""
+"""Recommendation Agent — LLM explainable summary with confidence and next action."""
 
-from models.agent_context import AgentContext
+from typing import Any
+
+from graph.state import WorkflowState
 from models.agent_kind import AgentKind
 from agents.base import BaseAgent
+from tools.registry import get_recommendation_tool
 
 
 class RecommendationAgent(BaseAgent):
     kind = AgentKind.RECOMMENDATION
 
-    def _execute(self, context: AgentContext) -> dict:
-        validation = context.prior_results.get(AgentKind.VALIDATION.value, {})
-        contact = context.prior_results.get(AgentKind.CONTACT.value, {})
-        contacts = contact.get("contacts", [])
-        primary = contacts[0] if contacts else {"name": "Unknown", "title": "Unknown"}
+    @property
+    def state_key(self) -> str:
+        return "recommendation"
+
+    def _execute(self, state: WorkflowState) -> dict[str, Any]:
+        # Snapshot shared state for the LLM recommendation tool
+        snapshot = {
+            "goal": state.get("goal", ""),
+            "business_config": state.get("business_config", {}),
+            "discovery": state.get("discovery", {}),
+            "validation": state.get("validation", {}),
+            "contact": state.get("contact", {}),
+        }
+
+        rec_tool = get_recommendation_tool()
+        rec_result = rec_tool.generate(snapshot)
+        rec_data = rec_result.data or {}
 
         return {
-            "recommended_action": "send_intro_email",
-            "priority": "high" if validation.get("fit_score", 0) >= 0.8 else "medium",
-            "target_contact": primary.get("name"),
-            "target_title": primary.get("title"),
-            "talking_points": [
-                "Reference recent growth signals (placeholder)",
-                "Align with their B2B SaaS motion (placeholder)",
-                "Offer a short discovery call (placeholder)",
-            ],
-            "draft_subject": f"Quick idea for {primary.get('name', 'your team')}",
+            **rec_data,
+            "integrations": {
+                "recommendation": rec_result.to_meta(),
+            },
         }

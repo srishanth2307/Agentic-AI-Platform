@@ -16,5 +16,12 @@ class Settings(BaseSettings):
     debug: bool = False
     memory_db_path: str = "data/memory.db"
 
+    # --- AI & search integrations (optional — mock fallbacks when unset) ---
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
+    tavily_api_key: str | None = None
+    firecrawl_api_key: str | None = None
+    apollo_api_key: str | None = None
+
 
 settings = Settings()
